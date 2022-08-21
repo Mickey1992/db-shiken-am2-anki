@@ -15,12 +15,14 @@ const IMAGE_NAME_PREFIX = "db_shiken_am2";
     ]);
 
   let questionNo = 0;
-  while(questionNo < numberOfQuestions) {
+  while(questionNo < 1) {
     questionNo = await page.$eval(".qno", qno => Number.parseInt(qno.textContent!.slice(2)));
-    let question = await page.$(".qno ~ div");
-    let [selections, explanation] = await page.$$(".ansbg");
-    let answer = await page.$eval("#answerChar", span => span.textContent);
+    let [question] = await getCardHTML(page, ".qno ~ div");
+    let [selections, explanation] = await getCardHTML(page, ".ansbg");
+    let answer = await getCardHTML(page, "#answerChar");
+
     console.log(questionNo + "/" + numberOfQuestions);
+    
     await Promise.all([
     page.waitForNavigation(),
     page.click('.submit'),
@@ -29,26 +31,11 @@ const IMAGE_NAME_PREFIX = "db_shiken_am2";
   await browser.close();
 })();
 
+async function getCardHTML(page: puppeteer.Page, selector: string): Promise<string[]> {
+    return page.$$eval(selector, elements => {
+        return elements.map($ => $.innerHTML);
+    })
+}
 
-/*
-    url: 
-            https://www.db-siken.com/dbkakomon.php
-    number of questions: document.querySelectorAll('#tab1 > label').length * 25
-    start-button:
-            document.querySelector(".submit")
-    quesation_no:
-            document.querySelector(".qno")
-    question:
-            document.querySelector(".qno ~ div")
-    choice:
-            document.querySelector("#select_a")
-            document.querySelector("#select_i")
-            document.querySelector("#select_u")
-            document.querySelector("#select_e")
-    answer:
-            document.querySelector("#answerChar")
-    explanation:
-            document.querySelectorAll(".ansbg")[1]
-    next-button:
-            document.querySelector(".submit")
-*/
+
+
