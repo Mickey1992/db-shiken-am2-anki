@@ -12,10 +12,7 @@ async function main() {
         await page.goto('https://www.db-siken.com/dbkakomon.php');
 
         const numberOfQuestions = await page.$$eval('#tab1 > label', (labels, num) => labels.length * num, QUESTIONS_PER_YEAR);
-        await Promise.all([
-        page.waitForNavigation(),
-        page.click('.submit'),
-        ]);
+        await clickSubmit(page);
 
         let questionNo = 0;
         while(questionNo < numberOfQuestions) {
@@ -27,22 +24,19 @@ async function main() {
                 let answer = await getCardHTML(page, "#answerChar");
 
                 console.log(question);
-                
-                await Promise.all([
-                page.waitForNavigation(),
-                page.click('.submit'),
-                ]);
+
+                await clickSubmit(page);
         }
         await browser.close();
 }
 
 
-// async function submit(page: puppeteer.Page) {
-//     await Promise.all([
-//     page.waitForNavigation(),
-//     page.click('.submit'),
-//     ]);
-// }
+async function clickSubmit(page: puppeteer.Page) {
+    await Promise.all([
+    page.waitForNavigation(),
+    page.click('.submit'),
+    ]);
+}
 
 function downloadImage(url: string, imageName: string) {
     return new Promise((resolve, reject) => {
@@ -71,6 +65,8 @@ async function getCardHTML(page: puppeteer.Page, selector: string): Promise<stri
                 return elements.map(element => element.innerHTML)});
         
         cardHtmls.map(cardHtml => {
+                console.log(cardHtml);
+                console.log(urlReplaceMap);
                 for(let[oldUrl, newUrl] of urlReplaceMap) {
                         cardHtml = cardHtml.replace(oldUrl, newUrl);
                 }
