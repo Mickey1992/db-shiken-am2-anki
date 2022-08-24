@@ -1,10 +1,12 @@
 import puppeteer from 'puppeteer';
 import https from 'https';
 import fs from 'fs';
+import fsPromise from 'fs/promises'
 
 const QUESTIONS_PER_YEAR = 25;
 const WEBSITE_HOST = "https://www.db-siken.com";
 const IMAGE_NAME_PREFIX = "db_shiken_am2";
+const OUTPUT_FILE_NAME = "db_shiken_am2_anki.tsv"
 
 async function main() {
         const browser = await puppeteer.launch();
@@ -21,10 +23,9 @@ async function main() {
 
                 let [question] = await getCardHTML(page, ".qno ~ div");
                 let [selections, explanation] = await getCardHTML(page, ".ansbg");
-                let answer = await getCardHTML(page, "#answerChar");
+                let [answer] = await getCardHTML(page, "#answerChar");
 
-                console.log(question);
-
+                await outputToFile(question, selections, answer, explanation);
                 await clickSubmit(page);
         }
         await browser.close();
@@ -71,6 +72,18 @@ async function getCardHTML(page: puppeteer.Page, selector: string): Promise<stri
 
                 return cardHtml;
         });
+}
+
+function wrapContent(content: string, className: string): string {
+        return `<div class="${className}">${content}</div>`;
+}
+
+async function outputToFile(question: string, choice: string, answer: string, explanation: string) {
+        const content = wrapContent(question, "question") + '\t' + 
+                        wrapContent(choice, "choice") + '\t' + 
+                        wrapContent(answer, "answer") + '\t' +
+                        wrapContent(explanation, "explanation") + '\n'
+        await fsPromise.writeFile(OUTPUT_FILE_NAME, content, { flag: 'a+' });
 }
 
 /*
