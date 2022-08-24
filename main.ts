@@ -1,41 +1,108 @@
 import puppeteer from 'puppeteer';
+import https from 'https';
+import fs from 'fs';
 
 const QUESTIONS_PER_YEAR = 25;
 const WEBSITE_HOST = "https://www.db-siken.com";
 const IMAGE_NAME_PREFIX = "db_shiken_am2";
 
-(async () => {
-  const browser = await puppeteer.launch();
-  const page = await browser.newPage();
-  await page.goto('https://www.db-siken.com/dbkakomon.php');
-  const numberOfQuestions = await page.$$eval('#tab1 > label', labels => labels.length * 25);
-  await Promise.all([
-    page.waitForNavigation(),
-    page.click('.submit'),
-    ]);
+async function main() {
+        const browser = await puppeteer.launch();
+        const page = await browser.newPage();
+        await page.goto('https://www.db-siken.com/dbkakomon.php');
 
-  let questionNo = 0;
-  while(questionNo < 1) {
-    questionNo = await page.$eval(".qno", qno => Number.parseInt(qno.textContent!.slice(2)));
-    let [question] = await getCardHTML(page, ".qno ~ div");
-    let [selections, explanation] = await getCardHTML(page, ".ansbg");
-    let answer = await getCardHTML(page, "#answerChar");
+        const numberOfQuestions = await page.$$eval('#tab1 > label', (labels, num) => labels.length * num, QUESTIONS_PER_YEAR);
+        await Promise.all([
+        page.waitForNavigation(),
+        page.click('.submit'),
+        ]);
 
-    console.log(questionNo + "/" + numberOfQuestions);
-    
-    await Promise.all([
-    page.waitForNavigation(),
-    page.click('.submit'),
-    ]);
-  }
-  await browser.close();
-})();
+        let questionNo = 0;
+        while(questionNo < numberOfQuestions) {
+                questionNo = await page.$eval(".qno", qno => Number.parseInt(qno.textContent!.slice(2)));
+                console.log(questionNo + "/" + numberOfQuestions);
 
-async function getCardHTML(page: puppeteer.Page, selector: string): Promise<string[]> {
-    return page.$$eval(selector, elements => {
-        return elements.map($ => $.innerHTML);
-    })
+                let [question] = await getCardHTML(page, ".qno ~ div");
+                let [selections, explanation] = await getCardHTML(page, ".ansbg");
+                let answer = await getCardHTML(page, "#answerChar");
+
+                console.log(question);
+                
+                await Promise.all([
+                page.waitForNavigation(),
+                page.click('.submit'),
+                ]);
+        }
+        await browser.close();
 }
 
+
+// async function submit(page: puppeteer.Page) {
+//     await Promise.all([
+//     page.waitForNavigation(),
+//     page.click('.submit'),
+//     ]);
+// }
+
+function downloadImage(url: string, imageName: string) {
+    return new Promise((resolve, reject) => {
+            https.get(url, res => {
+            res.pipe(fs.createWriteStream(imageName))
+                .on('error', reject)
+                .once('close', resolve);
+        });
+    });
+}
+
+async function getCardHTML(page: puppeteer.Page, selector: string): Promise<string[]> {  
+        let currentImageUrls = await page.$$eval(
+                selector + " img", 
+                imgTags => imgTags.map(imgTag => imgTag.getAttribute("src")));
+        
+        const urlReplaceMap = new Map();
+        currentImageUrls.forEach(async imgUrl => {
+                let newUrl = imgUrl!.slice(1);
+                let fileName = IMAGE_NAME_PREFIX + newUrl.split("/").join("_");
+                urlReplaceMap.set(imgUrl, fileName);
+                await downloadImage(WEBSITE_HOST + newUrl, fileName);
+        });
+
+        let cardHtmls = await page.$$eval(selector, elements => {
+                return elements.map(element => element.innerHTML)});
+        
+        cardHtmls.map(cardHtml => {
+                for(let[oldUrl, newUrl] of urlReplaceMap) {
+                        cardHtml = cardHtml.replace(oldUrl, newUrl);
+                }
+                return cardHtml;
+        })
+
+        return  cardHtmls;
+}
+
+/*
+    url: 
+            https://www.db-siken.com/dbkakomon.php
+    number of questions: document.querySelectorAll('#tab1 > label').length * 25
+    start-button:
+            document.querySelector(".submit")
+    quesation_no:
+            document.querySelector(".qno")
+    question:
+            document.querySelector(".qno ~ div")
+    choice:
+            document.querySelector("#select_a")
+            document.querySelector("#select_i")
+            document.querySelector("#select_u")
+            document.querySelector("#select_e")
+    answer:
+            document.querySelector("#answerChar")
+    explanation:
+            document.querySelectorAll(".ansbg")[1]
+    next-button:
+            document.querySelector(".submit")
+*/
+
+main();
 
 
