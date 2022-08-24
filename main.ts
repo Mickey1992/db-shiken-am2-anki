@@ -64,16 +64,13 @@ async function getCardHTML(page: puppeteer.Page, selector: string): Promise<stri
         let cardHtmls = await page.$$eval(selector, elements => {
                 return elements.map(element => element.innerHTML)});
         
-        cardHtmls.map(cardHtml => {
-                console.log(cardHtml);
-                console.log(urlReplaceMap);
+        return cardHtmls.map(cardHtml => {
                 for(let[oldUrl, newUrl] of urlReplaceMap) {
                         cardHtml = cardHtml.replace(oldUrl, newUrl);
                 }
-                return cardHtml;
-        })
 
-        return  cardHtmls;
+                return cardHtml;
+        });
 }
 
 /*
